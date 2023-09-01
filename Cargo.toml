@@ -1,0 +1,22 @@
+[package]
+name = "humpty2"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = "4.4.0"
+csv = "1.2.2"
+libm = "0.2.7"
+nalgebra = "0.32.3"
+num-traits = "0.2.16"
+plotly = "0.8.4"
+polars = "0.32.1"
+rand = "0.8.5"
+rand_distr = "0.4.3"
+rayon = "1.7.0"
+serde = "1.0.188"
+serde_json = "1.0.105"
+serde_yaml = "0.9.25"
+varpro = "0.6.0"
