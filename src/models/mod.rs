@@ -10,7 +10,7 @@ pub mod ModelAffine;
 
 pub trait ParameterizedModel{
     fn get_all_params(&self) -> Vec<f64>;
-    fn set_all_params(&mut self, &[f64]);
+    fn set_all_params(&mut self, p: &[f64] );
     fn get_nonlinear_params(&self) -> Vec<f64> ;
     fn eval(&self, t : f64 ) -> f64 ; 
     fn get_copy( &self ) -> Self ;

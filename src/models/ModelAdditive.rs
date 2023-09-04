@@ -103,16 +103,16 @@ where M : ParameterizedModel + Clone + VarProAdapter{
             .collect()
     }
     /// this function is designed around varpro which provides linear and separable prameters vectors upon return.
-    fn set_all_params( &mut self, &[f64]){
+    fn set_all_params( &mut self, p : &[f64]){
+        let mut k = 0; 
         self.components.iter_mut().for_each(
             |c| 
             {
-                
+                let num_pars = c.get_all_params().len();  // for tanh : kappa, alpha, beta
+                c.set_all_params( &p[k..(k+ num_pars)]);
+                k += num_pars;
             }
         )
-        self.kappa = kappa;
-        self.alpha = alpha;
-        self.beta = beta;
     } 
     fn get_nonlinear_params(&self) -> Vec<f64>{
         self.components.iter()

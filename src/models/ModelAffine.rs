@@ -17,7 +17,7 @@ impl<M> AffineAdditive<M> where M : ParameterizedModel + Clone + VarProAdapter {
     pub fn new(tm: ModelAdditive<M>, km: ModelConstant) -> Self { Self { tm, km } }
 
     /// EDIT POINT - We are here.
-    fn var_pro_curve_fit( &mut self , 
+    fn curve_fit( &mut self , 
         tspan : Matrix<f64, Dyn, Const<1>, nalgebra::VecStorage<f64, Dyn, Const<1>>>, 
         data : Matrix<f64, Dyn, Const<1>, nalgebra::VecStorage<f64, Dyn, Const<1>>>, 
     ) -> Result<bool, String>{
@@ -39,13 +39,28 @@ impl<M> AffineAdditive<M> where M : ParameterizedModel + Clone + VarProAdapter {
         //println!( " \n\n ----- \n\n ");
         let alpha = solved_problem.params();
         let coeff = solved_problem.linear_coefficients().unwrap();
-        let A : Vec<f64> = alpha.as_slice().into();
-        let C : Vec<f64> = coeff.as_slice().into();
-        //interprete_model(K, A, C);
-        // TODO WRITE VALUES BACK.
-        Ok( self) 
-    }   
+        //now we must splice these together for parameter adjustment.
+        let mut RVV: Vec<f64> = Vec::new();
+        let mut k1 = 0; 
+        let mut k2 = 0;
+        self.tm.components.iter().for_each(
+            |c| 
+            {
+                let nx = c.get_nonlinear_params().len(); 
+                RVV.push( coeff[k1] );
+                k1 += 1;
+                (k2..(k2+nx)).for_each( 
+                    |jj|  
+                    RVV.push( alpha[jj]) 
+                );
+                k2 += nx; 
+            }
+        );
+        RVV.push( coeff[k1] );
+        self.set_all_params( RVV.as_slice() );
 
+        Ok( true ) 
+    }   
 
 }
 
@@ -57,6 +72,10 @@ where M : ParameterizedModel + Clone  + VarProAdapter{
         rv.append( &mut rv2) ;
         rv
     } 
+    fn set_all_params(&mut self, p:  &[f64]) {
+        self.tm.set_all_params( &p[..(p.len()-1)]);  // seq shoudl be: kappa_1, alpha_1, beta_1, ... k_n, a_n, b_n, K_all
+        self.km.set_all_params( &p[(p.len()-1)..(p.len()) ]); 
+    }
     fn get_nonlinear_params(&self )-> Vec<f64> {
          let mut rv = self.tm.get_nonlinear_params();
          let mut rv2 = self.km.get_nonlinear_params();
@@ -80,7 +99,12 @@ where M : ParameterizedModel + Clone  + VarProAdapter{
     }
 
 
- 
+}
 
 
+#[test]
+fn test_1(){
+    let Y = [1.2, 3.3, 4.4, 5.5, 6.6 ];
+    println!( "{:?}", &Y[(Y.len()-1)..(Y.len())]);
+    println!( "{:?}", &Y[..(Y.len()-1)]);
 }

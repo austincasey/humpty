@@ -30,7 +30,7 @@ impl ParameterizedModel for ModelTanh{
     fn get_all_params(&self) -> Vec<f64>{
         return vec![ self.kappa, self.alpha, self.beta ]
     } 
-    fn set_all_params( &mut self, V : &[f64]){
+    fn set_all_params( &mut self, V : &[f64]){  // Kappa, alpha, beta
         self.kappa = V[0];
         self.alpha = V[1];
         self.beta = V[2];
