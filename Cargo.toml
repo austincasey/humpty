@@ -1,5 +1,5 @@
 [package]
-name = "humpty2"
+name = "humpty"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,9 +10,12 @@ clap = "4.4.0"
 csv = "1.2.2"
 libm = "0.2.7"
 nalgebra = "0.32.3"
+ndarray = "0.15.6"
 num-traits = "0.2.16"
-plotly = "0.8.4"
-polars = "0.32.1"
+plotly = { version = "0.8.4", features = ["kaleido"] }
+
+#polars = "0.32.1"
+polars = {version = "0.32.1", features =["ndarray", "dtype-date", "dtype-datetime", "strings"] }
 rand = "0.8.5"
 rand_distr = "0.4.3"
 rayon = "1.7.0"

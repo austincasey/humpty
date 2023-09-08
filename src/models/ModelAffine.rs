@@ -17,16 +17,16 @@ impl<M> AffineAdditive<M> where M : ParameterizedModel + Clone + VarProAdapter {
     pub fn new(tm: ModelAdditive<M>, km: ModelConstant) -> Self { Self { tm, km } }
 
     /// EDIT POINT - We are here.
-    fn curve_fit( &mut self , 
-        tspan : Matrix<f64, Dyn, Const<1>, nalgebra::VecStorage<f64, Dyn, Const<1>>>, 
-        data : Matrix<f64, Dyn, Const<1>, nalgebra::VecStorage<f64, Dyn, Const<1>>>, 
+    pub fn curve_fit( &mut self , 
+        tspan : &Matrix<f64, Dyn, Const<1>, nalgebra::VecStorage<f64, Dyn, Const<1>>>, 
+        data : &Matrix<f64, Dyn, Const<1>, nalgebra::VecStorage<f64, Dyn, Const<1>>>, 
     ) -> Result<bool, String>{
 
-        let model = self.tm.build_varpro_separable_model( tspan );
+        let model = self.tm.build_varpro_separable_model( tspan.clone() );
         //println!( " MODEL:  {:?}", model); 
         //println!(" forming problem"); 
         let problem = LevMarProblemBuilder::new(model)
-            .observations(data)
+            .observations(data.clone())
             .build()
             .unwrap(); 
 
@@ -61,6 +61,27 @@ impl<M> AffineAdditive<M> where M : ParameterizedModel + Clone + VarProAdapter {
 
         Ok( true ) 
     }   
+
+
+    pub fn residual( & self , 
+        tspan : &Matrix<f64, Dyn, Const<1>, nalgebra::VecStorage<f64, Dyn, Const<1>>>, 
+        data : &Matrix<f64, Dyn, Const<1>, nalgebra::VecStorage<f64, Dyn, Const<1>>>, 
+    ) -> (f64, f64, Vec<f64>)     {
+        let M :Vec<f64> = tspan.iter().map( |t| self.eval(*t) ).collect();
+        let ML = M.len();
+        let resid : Vec<f64> = data.iter().zip( M.iter() ).map( |(a,b)| { (a -b)*(a-b ) }).collect();
+        let rsum = resid.iter().fold(0., |acc,x | acc + x );
+        let rsumsq = libm::sqrt( rsum ); 
+        let rsumsq_pp = rsumsq / (ML as f64 );
+        ( rsumsq,rsumsq_pp,resid )
+    }
+    /// 
+    /// This function will generate a random set of models of type M.  
+    ///      How long is the string? 
+    ///      Distributed geom( 0.25 ) or continuation probability is 0.75
+    pub fn random_model_given_humps( humps: usize , rng : &rand::rngs::ThreadRng ) -> Self {
+        Self::new(  ModelAdditive::<M>::random_model_given_humps( humps, rng ), ModelConstant::random_model(rng))
+    }
 
 }
 

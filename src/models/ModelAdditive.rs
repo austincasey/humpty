@@ -36,7 +36,7 @@ impl<M> ModelAdditive<M> where M : ParameterizedModel + Clone  + VarProAdapter{
             .for_each( 
                 | (k, m) | 
                 { 
-                    let y = format!("{}", k); 
+                    let y = format!("_{}", k); 
                     rv.append( &mut m.separable_labels(Some(y)).toVec() )
                 } 
         );
@@ -88,10 +88,18 @@ impl<M> ModelAdditive<M> where M : ParameterizedModel + Clone  + VarProAdapter{
                 .unwrap();
             model_last 
 
-}
+    }
 
 
 
+    /// 
+    /// This function will generate a random set of models of type M.  
+    ///      How long is the string? 
+    ///      Distributed geom( 0.25 ) or continuation probability is 0.75
+    pub fn random_model_given_humps( humps: usize , rng : &rand::rngs::ThreadRng ) -> Self {
+        let v = humps ; 
+        Self::new( (0..v).map( |_| M::random_model(rng) ).collect() )
+    }
 
 }
 
