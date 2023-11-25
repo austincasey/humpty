@@ -6,7 +6,7 @@ Numerical Method to comprehend/approximate Chang-points caused by spontaneous ch
 (c) 2023 W. Casey
 
 <div style="text-align: center;">
-<img src="doc/climate.png" alt="Climate data" width="400" height="200"/>
+<img src="climate.png" alt="Climate data" width="400" height="200"/>
 <p>
 Climate change data and adaptive model.
 </div>

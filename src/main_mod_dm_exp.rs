@@ -3,6 +3,8 @@ use std::{path::PathBuf, fs::File, io::BufReader, cmp::min};
 use crate::models::{ModelAffine::AffineAdditive, ModelTanh::ModelTanh};
 use crate::models::ParameterizedModel;
 use crate::viz_lib::invert_tanh;
+use crate::main_mod_dm_fit::{reload_data, load_data, data_fit_load_metadata, data_fit_package, model_fit};
+
 
 pub fn basic_explanation(models: String, top: usize) {
 
@@ -10,14 +12,16 @@ pub fn basic_explanation(models: String, top: usize) {
     path.set_extension("yml"); 
     let mut data_file = File::open(path).expect("open model(s) file failed, please insure the extention is yml");
     let mut reader = BufReader::new(data_file);
-    let V:  Vec<(f64, AffineAdditive<ModelTanh>, AffineAdditive<ModelTanh>)>  = serde_yaml::from_reader(reader).expect("problem reading yaml file");
-    
+    let VX : data_fit_package<ModelTanh> = serde_yaml::from_reader(reader).expect("problem reading yaml file");
+    let data_fit_package{ load_metadata: lmd,  fits: VV } = VX;
+    //let V:  Vec<(f64, AffineAdditive<ModelTanh>, AffineAdditive<ModelTanh>)>  
 
-    (0..min(top, V.len())).for_each(
+    (0..min(top, VV.len())).for_each(
         |k|
         { 
-            let lsm = V[k].0; 
-            let M = &V[k].1; 
+            let model_fit{ humps : humps,fitted_model : fitted_model, initial_model : initial_model, residual_total : residual_total,residual_per_point : residual_per_point} = &VV[k] ;
+            let lsm = residual_total; 
+            let M = &fitted_model; 
             println!("rank.{k}, lsm.{lsm}, {:?}", M); 
         }
     );
@@ -26,21 +30,26 @@ pub fn basic_explanation(models: String, top: usize) {
 
 pub fn intermediate_explanation(models: String, top: usize, pval: f64) {
     let mut path = PathBuf::from(models.as_str() );
+
     path.set_extension("yml"); 
     let mut data_file = File::open(path).expect("open model(s) file failed, please insure the extention is yml");
     let mut reader = BufReader::new(data_file);
-    let V:  Vec<(f64, AffineAdditive<ModelTanh>, AffineAdditive<ModelTanh>)>  = serde_yaml::from_reader(reader).expect("problem reading yaml file");
-    
+    let VX : data_fit_package<ModelTanh> = serde_yaml::from_reader(reader).expect("problem reading yaml file");
+    let data_fit_package{ load_metadata: lmd,  fits: VV } = VX;
+    //let V:  Vec<(f64, AffineAdditive<ModelTanh>, AffineAdditive<ModelTanh>)>  
 
     let mut mathematica_code = String::new();
     let mut matlab_code = String::new(); // TODO
     let mut julia_code = String::new();  // TODO 
 
-    (0..min(top, V.len())).for_each(
+    (0..min(top, VV.len())).for_each(
         |k|
         { 
-            let lsm = V[k].0; 
-            let M = &V[k].1; 
+
+            let model_fit{ humps : humps,fitted_model : fitted_model, initial_model : initial_model, residual_total : residual_total,residual_per_point : residual_per_point} = &VV[k] ;
+
+            let lsm = residual_total; 
+            let M = &fitted_model; 
             println!("rank.{k}, lsm.{lsm}:");
             M.tm.components.iter().enumerate().for_each(
                 |(j, c )|

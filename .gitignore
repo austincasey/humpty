@@ -2,4 +2,5 @@
 .vscode
 .errorviz-version
 /data_test
+/old
 /src/main_mod_dm_fit_experimental.rs

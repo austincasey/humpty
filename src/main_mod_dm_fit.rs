@@ -1,6 +1,6 @@
 use std::{cmp::min, path::{Path, PathBuf}, io::BufWriter};
 use nalgebra::{DVector, Matrix, Dyn, Const};
-use ndarray::Array;
+use ndarray::{Array, s};
 use csv::Writer;
 use polars::prelude::{CsvReader, PolarsResult, DataFrame, SerReader};
 use rayon::prelude::IntoParallelIterator;
@@ -9,9 +9,46 @@ use std::cmp::Reverse;
 use rayon::iter::ParallelIterator;
 use std::fs::File;
 use std::io::Write;
+use crate::models::{ModelAffine::AffineAdditive, ModelTanh::ModelTanh, ParameterizedModel, VarProAdapter};
+
+use serde::{Serialize, Deserialize};
 
 
-use crate::models::{ModelAffine::AffineAdditive, ModelTanh::ModelTanh};
+#[derive(Debug, Serialize, Deserialize, Clone )]
+pub struct data_slice{
+    offset: Option<i64>,
+    limit: Option<usize>,
+    strides : Option<usize>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone )]
+pub struct data_fit_load_metadata{
+    input : String,  //this should probably be a global path or URI
+    slice : data_slice, 
+    colname : String 
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone )]
+pub struct model_fit<M> where M: ParameterizedModel + Clone  + VarProAdapter {
+    pub humps : usize,
+    pub fitted_model : AffineAdditive<M>,
+    pub initial_model : AffineAdditive<M>,
+    pub residual_total : f64, 
+    pub residual_per_point : f64,
+} 
+
+#[derive(Debug, Serialize, Deserialize, Clone )]
+pub struct data_fit_package<M> where M: ParameterizedModel + Clone  + VarProAdapter  {
+    pub load_metadata : data_fit_load_metadata,
+    pub fits : Vec<model_fit<M>>
+}
+///////////////////
+/// TODO here the data_fit_package can furnish several types of anlaysis.
+/// * analysis of variance of changepoints.
+///     Fixing the hump size, and running lots of samples calcualte the variance in Change Points as the a funciton of residual.
+/// * regularized fit.
+///     Finding the best of each hump index, and presented with a cost function (in hump index) calculate the best regularized model.
+/// 
 
 pub fn readcsv(path : &String) -> PolarsResult<DataFrame> { 
 
@@ -23,10 +60,23 @@ pub fn readcsv(path : &String) -> PolarsResult<DataFrame> {
     dataset
 }
 
+pub fn reload_data( ds : data_fit_load_metadata ) -> (
+    ( Matrix<f64, Dyn, Const<1>, nalgebra::VecStorage<f64, Dyn, Const<1>>> , Matrix<f64, Dyn, Const<1>, nalgebra::VecStorage<f64, Dyn, Const<1>>> ),
+    Matrix<f64, Dyn, Const<1>, nalgebra::VecStorage<f64, Dyn, Const<1>>>,
+    ( ndarray::ArrayBase<ndarray::OwnedRepr<f64>, ndarray::Dim<[usize; 1]>>, ndarray::ArrayBase<ndarray::OwnedRepr<f64>, ndarray::Dim<[usize; 1]>> )){
+    let data_fit_load_metadata{ input, slice , colname }: data_fit_load_metadata= ds;
+    let data_slice{ offset, limit, strides } = slice; 
+    load_data( &input, offset, limit, strides, Some( &colname ))
+}
+
 pub fn load_data( input : &String,
-    offset: Option<&i64>,
-    limit: Option<&usize>,
-    strides : Option<&usize> ) -> ( Matrix<f64, Dyn, Const<1>, nalgebra::VecStorage<f64, Dyn, Const<1>>> , Matrix<f64, Dyn, Const<1>, nalgebra::VecStorage<f64, Dyn, Const<1>>> )
+    offset: Option<i64>,
+    limit: Option<usize>,
+    strides : Option<usize>,
+    colname : Option<&String> ) -> (
+        ( Matrix<f64, Dyn, Const<1>, nalgebra::VecStorage<f64, Dyn, Const<1>>> , Matrix<f64, Dyn, Const<1>, nalgebra::VecStorage<f64, Dyn, Const<1>>> ),
+        Matrix<f64, Dyn, Const<1>, nalgebra::VecStorage<f64, Dyn, Const<1>>>,
+        ( ndarray::ArrayBase<ndarray::OwnedRepr<f64>, ndarray::Dim<[usize; 1]>>, ndarray::ArrayBase<ndarray::OwnedRepr<f64>, ndarray::Dim<[usize; 1]>> ))
     {
         let verbose = false; 
         let df = readcsv( &input ).expect("problem opening file ...");
@@ -42,23 +92,40 @@ pub fn load_data( input : &String,
             Some(x) => x.clone(),
             None => 1,
         };
-        let df = df.slice( offset_data as i64, limit_data ); 
+        //let df = df.slice( offset_data as i64, limit_data ); 
         // the data frame is now trimmed ..
-        let N = df.shape().0;  // number of rows (samples)
+        let data_column = match colname {
+            Some(X) => X.clone(),
+            None => String::from( "count" ),
+        };
         if verbose { println!(" df {:?}", df ); }
         // POLARS Data frame to NDARRAY
-        let D = match df.column( "count" ) {
+        
+        let DFULL: ndarray::ArrayBase<ndarray::ViewRepr<&f64>, ndarray::Dim<[usize; 1]>> = match df.column( &data_column ) {
             Ok(CD) => CD.f64().unwrap().to_ndarray().unwrap(),
-            Err(_) => df.get_columns().last().unwrap().f64().unwrap().to_ndarray().unwrap(),
+            Err(_) => { 
+                println!( "ERROR no column by name {data_column}, instead will use the last data column by default.");
+                df.get_columns().last().unwrap().f64().unwrap().to_ndarray().unwrap()
+            }
         };
-        let time = Array::linspace(0., (N-1) as f64, N);
-        println!( "time domain {:?}", time );
-        println!( "data domain {:?}", D ); 
-        println!(" .. ** .. ** .. ** .. " );
+        let NFULL = DFULL.shape()[0];
+        let TFULL: ndarray::ArrayBase<ndarray::OwnedRepr<f64>, ndarray::Dim<[usize; 1]>>  = Array::linspace( 0., (NFULL-1) as f64, NFULL );
 
-        let tspan: Matrix<f64, Dyn, Const<1>, nalgebra::VecStorage<f64, Dyn, Const<1>>> = DVector::from_vec( time.to_vec() );
-        let dspan = DVector::from_vec( D.to_vec());
-        (tspan, dspan )
+
+        let DSLICE = DFULL.slice(s![(offset_data as usize)..(limit_data); strides_data]);
+        let NSLICE = DSLICE.shape()[0];
+        let TSLICE = TFULL.slice( s![(offset_data as usize)..(limit_data); strides_data]);//Array::linspace(0., (N-1) as f64, N);
+
+        //println!( "time domain {:?}", time );
+        //println!( "data domain {:?}", DSLICE ); 
+
+
+        let tsplice: Matrix<f64, Dyn, Const<1>, nalgebra::VecStorage<f64, Dyn, Const<1>>> = DVector::from_vec( TSLICE.to_vec() );
+        let dslice = DVector::from_vec( DSLICE.to_vec());
+        let tslice :  Matrix<f64, Dyn, Const<1>, nalgebra::VecStorage<f64, Dyn, Const<1>>> = DVector::from_vec( (0..NSLICE).map(|x|{x as f64}).collect() );
+        (   (tslice, tsplice ), // tslice is indexing for dslice, tsplice is indexing in D. 
+            dslice,               // spliced time (indexes of full time .. ( k...N+k) and sliced data), 
+            (TFULL, DFULL.to_owned()))  // full time full data
 }
 
 pub fn model_curve_fitting( input : String, 
@@ -66,23 +133,25 @@ pub fn model_curve_fitting( input : String,
                             humps : usize, 
                             samples : usize , 
                             reports : usize,
-                            offset: Option<&i64>,
-                            limit: Option<&usize>,
-                            strides : Option<&usize>
+                            data_column: &String,
+                            offset: Option<i64>,
+                            limit: Option<usize>,
+                            strides : Option<usize>
                         ){
-
-    let ( tspan , dspan ) = load_data(&input,offset,limit,strides );
-   
+    let ds = data_slice{ offset: offset.clone(), limit: limit.clone(), strides: strides.clone()};
+    let md: data_fit_load_metadata = data_fit_load_metadata{ input:input.clone(), slice:ds , colname: data_column.clone()};
+    let (( tspan ,texact), dspan  , (tspanfull, dspanfull)) = load_data(&input,offset,limit,strides, Some( &data_column.clone()) );
+    //let N = dspan.shape().0;
     let mut parlist = (0..samples).into_par_iter().map(
         |k|
         {
             let mut m2 = AffineAdditive::<ModelTanh>::random_model_given_humps( humps, &mut rand::thread_rng() );  
             let m2init = m2.clone();
-            m2.curve_fit(&tspan, &dspan);
-            let ( rsumsq,rsumsq_pp,resid ) = m2.residual(&tspan, &dspan); 
-            (rsumsq, m2, m2init)
+            m2.curve_fit(&texact, &dspan);
+            let ( rsumsq,rsumsq_pp,resid , resid1) = m2.residual_mat(&texact, &dspan); 
+            (rsumsq, rsumsq_pp, m2, m2init)
         });
-    let mut list  : Vec<(f64, AffineAdditive<ModelTanh>, AffineAdditive<ModelTanh>)> = parlist.collect();
+    let mut list  : Vec<(f64, f64, AffineAdditive<ModelTanh>, AffineAdditive<ModelTanh>)> = parlist.collect();
 
     list.sort_by(
         |a, b| 
@@ -96,6 +165,18 @@ pub fn model_curve_fitting( input : String,
         }
     );
 
+    let mfits : Vec<model_fit<ModelTanh>> = list.iter().take(reports).map(|(r, rpp, m, minit)|
+    {
+        model_fit {
+            humps: humps,
+            fitted_model: m.clone(),
+            initial_model: minit.clone(),
+            residual_total : *r, 
+            residual_per_point : *rpp 
+        } 
+    }).collect();
+
+    let model_pack = data_fit_package{ load_metadata: md, fits: mfits};
     // Create a file
     let mut path = PathBuf::from(output.as_str() );
     path.set_extension("yml");
@@ -103,7 +184,11 @@ pub fn model_curve_fitting( input : String,
 
     let mut data_file = File::create(path).expect("creation failed");
     let mut writer = BufWriter::new(data_file);
-    serde_yaml::to_writer(&mut writer, &list[0..reports]).expect("serde yaml serialization fails.");
+
+    //old method:
+    // serde_yaml::to_writer(&mut writer, &list[0..reports]).expect("serde yaml serialization fails.");
+
+    serde_yaml::to_writer(&mut writer, &model_pack).expect("serde yaml serialization fails.");
     writer.flush().expect("error finalizing serde yaml buffer.");
 
  

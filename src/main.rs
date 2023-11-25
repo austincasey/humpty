@@ -39,36 +39,55 @@ fn main() {
             let humps : usize = m.get_one::<usize>("humps" ).expect("parsing humps issue").clone();
             let samples : usize = m.get_one::<usize>("samples" ).expect("parsing humps issue").clone();
             let reports : usize = m.get_one::<usize>("reports" ).expect("parsing reports issue").clone();
-            let offset  = m.get_one::<i64>("offset");
-            let limit  = m.get_one::<usize>( "limit"); 
-            let strides  = m.get_one::<usize>("strides");
-            println!( " fitting model ({input}, {output}, {humps}, {samples})");
-            model_curve_fitting( input, output, humps, samples, reports, offset, None, None ); 
+            let offset: Option<i64>  = match m.get_one::<i64>("offset") {Some(O) => Some( *O ),None => None};
+            let limit: Option<usize>  = match m.get_one::<usize>( "limit"){Some(O) => Some( *O ),None => None}; 
+            let strides  = match m.get_one::<usize>("strides"){Some(O) => Some( *O ),None => None};
+            let data_column   = m.get_one::<String>("col").expect("data column needed" );
+            let L : String = match limit {
+                Some(x) => format!( "{} ", x ),
+                None => String::from( "- " ),
+            };
+            let S : String = match strides {
+                Some(y) => format!( "{} ", y ), 
+                None => String::from( "-" )
+            };
+            println!( " fitting model ({input}, {output}, {humps}, {samples}, limit:{L}, {S})");
+            model_curve_fitting( input, output, humps, samples, reports, data_column, offset, limit, strides ); 
         },
         Some( ("viz", m )) => {
             match m.subcommand(){
-                Some(("basic", m )) => 
+                Some(("basic", m )) =>  
                 {
-                    let data : String = m.get_one::<String>("DATA").expect( "data file not specified").clone();
+                    //let data : String = m.get_one::<String>("DATA").expect( "data file not specified").clone();
                     let models : String = m.get_one::<String>("MODEL").expect( "MODEL file not specified").clone();
                     let output : String = m.get_one::<String>("OUTPUT").expect( "OUTPUT file not specified").clone();
                     let top : usize = m.get_one::<usize>("top" ).expect("parsing top issue").clone();
-                    let offset  = m.get_one::<i64>("offset");
-                    let limit  = m.get_one::<usize>( "limit"); 
-                    let strides  = m.get_one::<usize>("strides");
-                    basic_visualization( data, models, output, top, offset, limit, strides );
+                    let offset: Option<i64>  = match m.get_one::<i64>("offset") {Some(O) => Some( *O ),None => None};
+                    let limit: Option<usize>  = match m.get_one::<usize>( "limit"){Some(O) => Some( *O ),None => None}; 
+                    let strides  = match m.get_one::<usize>("strides"){Some(O) => Some( *O ),None => None};
+                    basic_visualization(  models, output, top, offset, limit, strides , partial_model::new(60, 120));
                 },
                 Some(("intermediate", m )) => {
-                    let data : String = m.get_one::<String>("DATA").expect( "data file not specified").clone();
+                    //let data : String = m.get_one::<String>("DATA").expect( "data file not specified").clone();
                     let models : String = m.get_one::<String>("MODEL").expect( "MODEL file not specified").clone();
                     let output : String = m.get_one::<String>("OUTPUT").expect( "OUTPUT file not specified").clone();
                     let item : usize = m.get_one::<usize>("item" ).expect("parsing item issue").clone();
                     let pval : f64 = m.get_one::<f64>("pval" ).expect("parsing pval issue").clone();
-                    let offset  = m.get_one::<i64>("offset");
-                    let limit  = m.get_one::<usize>( "limit"); 
-                    let strides  = m.get_one::<usize>("strides");
-                    intermediate_visualization( data, models, output, item, pval, offset, limit, strides );
-                }
+                    let offset: Option<i64>  = match m.get_one::<i64>("offset") {Some(O) => Some( *O ),None => None};
+                    let limit: Option<usize>  = match m.get_one::<usize>( "limit"){Some(O) => Some( *O ),None => None}; 
+                    let strides  = match m.get_one::<usize>("strides"){Some(O) => Some( *O ),None => None};
+                    intermediate_visualization( models, output, item, pval, offset, limit, strides );
+                },
+                Some(("residual", m )) => {
+                    //let data : String = m.get_one::<String>("DATA").expect( "data file not specified").clone();
+                    let models : String = m.get_one::<String>("MODEL").expect( "MODEL file not specified").clone();
+                    let output : String = m.get_one::<String>("OUTPUT").expect( "OUTPUT file not specified").clone();
+                    let index : usize = m.get_one::<usize>("index" ).expect("parsing model at index").clone();
+                    let offset: Option<i64>  = match m.get_one::<i64>("offset") {Some(O) => Some( *O ),None => None};
+                    let limit: Option<usize>  = match m.get_one::<usize>( "limit"){Some(O) => Some( *O ),None => None}; 
+                    let strides  = match m.get_one::<usize>("strides"){Some(O) => Some( *O ),None => None};
+                    residual_visualization(  models, output, index, offset, limit, strides, partial_model::new(60, 120));
+                },
                 _ => {}
             }
         }, 
@@ -146,6 +165,13 @@ fn cli_model_fit( ) -> Command {
         .default_value("1000")
         .value_parser(value_parser!(usize))                
     )
+    .arg( 
+        Arg::new( "col" )
+        .short('d')
+        .long("datacolumn")
+        .default_value( "count")
+        .value_parser( value_parser!( String ))
+    )
     .arg(
         Arg::new( "offset" )
         .short( 'o' )
@@ -219,7 +245,7 @@ fn cli_model_viz( ) -> Command {
             .value_parser( value_parser!( usize ))
         )
         .arg(arg!(<OUTPUT> "A png file"))
-        .arg(arg!(<DATA> "data to consider, .. should be a list of csv files with headers" ))
+        //.arg(arg!(<DATA> "data to consider, .. should be a list of csv files with headers" ))
         .arg(arg!(<MODEL> "model file, .. such as that generated in the fit proceedure "))
         .arg_required_else_help(true)
     )
@@ -264,7 +290,44 @@ fn cli_model_viz( ) -> Command {
             .value_parser( value_parser!( usize ))
         )
         .arg(arg!(<OUTPUT> "A png file"))
-        .arg(arg!(<DATA> "data to consider, .. should be a list of csv files with headers" ))
+        //.arg(arg!(<DATA> "data to consider, .. should be a list of csv files with headers" ))
+        .arg(arg!(<MODEL> "model file, .. such as that generated in the fit proceedure "))
+        .arg_required_else_help(true)
+    )
+    .subcommand(
+        Command::new("residual")
+        .about( "construct basic plots with rolling quantile for residual.")
+        .arg(                     
+            Arg::new( "index" )
+            .short( 'i')
+            .long_help("select this many models from the input model file" )
+            .long("index")
+            .default_value("0" )
+            .value_parser(value_parser!(usize))
+        ) 
+        .arg(
+            Arg::new( "offset" )
+            .short( 'o' )
+            .long( "offset" )
+            .default_value( "0")
+            .value_parser( value_parser!( i64 ))
+        )
+        .arg( 
+            Arg::new( "limit" )
+            .short('l') 
+            .long("limit")
+            .default_value( "18446744073709551615")
+            .value_parser( value_parser!( usize ))
+        )
+        .arg( 
+            Arg::new( "strides" )
+            .short('x')
+            .long("stides")
+            .default_value( "1")
+            .value_parser( value_parser!( usize ))
+        )
+        .arg(arg!(<OUTPUT> "A png file"))
+        //.arg(arg!(<DATA> "data to consider, .. should be a list of csv files with headers" ))
         .arg(arg!(<MODEL> "model file, .. such as that generated in the fit proceedure "))
         .arg_required_else_help(true)
     )
