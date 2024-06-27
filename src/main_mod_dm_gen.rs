@@ -41,7 +41,7 @@ fn eval_tahn_model( M: &Vec<ModelTanh>, t: &Vec<f64> ) -> Vec<f64>{
 
 
 /// humpty runs estimates a multi-causal model from data.
-/// data is provided 
+/// this module generates data for fitting (tests and benchmarking) 
 /// 
 /// (C) W. Casey
 

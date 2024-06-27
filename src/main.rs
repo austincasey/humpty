@@ -3,6 +3,8 @@ use humpty::main_mod_dm_gen::{build_tanh_model_from_string, write_data};
 use humpty::main_mod_dm_fit::*; 
 use humpty::main_mod_dm_viz::*;
 use humpty::main_mod_dm_exp::*;
+use humpty::main_mod_dm_csv::*;
+
 //use std::intrinsics::offset;
 use std::path::{Path, PathBuf};
 
@@ -39,39 +41,138 @@ fn main() {
             let humps : usize = m.get_one::<usize>("humps" ).expect("parsing humps issue").clone();
             let samples : usize = m.get_one::<usize>("samples" ).expect("parsing humps issue").clone();
             let reports : usize = m.get_one::<usize>("reports" ).expect("parsing reports issue").clone();
-            let offset  = m.get_one::<i64>("offset");
-            let limit  = m.get_one::<usize>( "limit"); 
-            let strides  = m.get_one::<usize>("strides");
-            println!( " fitting model ({input}, {output}, {humps}, {samples})");
-            model_curve_fitting( input, output, humps, samples, reports, offset, None, None ); 
+            let offset: Option<i64>  = match m.get_one::<i64>("offset") {Some(O) => Some( *O ),None => None};
+            let limit: Option<usize>  = match m.get_one::<usize>( "limit"){Some(O) => Some( *O ),None => None}; 
+            let strides  = match m.get_one::<usize>("strides"){Some(O) => Some( *O ),None => None};
+            let data_column   = m.get_one::<String>("col").expect("data column needed" );
+            let L : String = match limit {
+                Some(x) => format!( "{} ", x ),
+                None => String::from( "- " ),
+            };
+            let S : String = match strides {
+                Some(y) => format!( "{} ", y ), 
+                None => String::from( "-" )
+            };
+            println!( " fitting model ({input}, {output}, {humps}, {samples}, limit:{L}, {S})");
+            model_curve_fitting( input, output, humps, samples, reports, data_column, offset, limit, strides ); 
         },
         Some( ("viz", m )) => {
             match m.subcommand(){
-                Some(("basic", m )) => 
+                Some(("basic", m )) =>  
                 {
-                    let data : String = m.get_one::<String>("DATA").expect( "data file not specified").clone();
+                    //let data : String = m.get_one::<String>("DATA").expect( "data file not specified").clone();
                     let models : String = m.get_one::<String>("MODEL").expect( "MODEL file not specified").clone();
                     let output : String = m.get_one::<String>("OUTPUT").expect( "OUTPUT file not specified").clone();
                     let top : usize = m.get_one::<usize>("top" ).expect("parsing top issue").clone();
-                    let offset  = m.get_one::<i64>("offset");
-                    let limit  = m.get_one::<usize>( "limit"); 
-                    let strides  = m.get_one::<usize>("strides");
-                    basic_visualization( data, models, output, top, offset, limit, strides );
+                    let offset: Option<i64>  = match m.get_one::<i64>("offset") {Some(O) => Some( *O ),None => None};
+                    let limit: Option<usize>  = match m.get_one::<usize>( "limit"){Some(O) => Some( *O ),None => None}; 
+                    let strides  = match m.get_one::<usize>("strides"){Some(O) => Some( *O ),None => None};
+                    let title : Option<String> = match m.get_one::<String>("title"){Some(O) => Some( O.clone() ),None => None};
+                    let xlabel : Option<String> = match m.get_one::<String>("xlabel"){Some(O) => Some( O.clone() ),None => None};
+                    let ylabel : Option<String> = match m.get_one::<String>("ylabel"){Some(O) => Some( O.clone() ),None => None};
+                    basic_visualization(  models, output, top, offset, limit, strides , partial_model::new(60, 120), title, xlabel, ylabel);
                 },
                 Some(("intermediate", m )) => {
-                    let data : String = m.get_one::<String>("DATA").expect( "data file not specified").clone();
+                    //let data : String = m.get_one::<String>("DATA").expect( "data file not specified").clone();
                     let models : String = m.get_one::<String>("MODEL").expect( "MODEL file not specified").clone();
                     let output : String = m.get_one::<String>("OUTPUT").expect( "OUTPUT file not specified").clone();
                     let item : usize = m.get_one::<usize>("item" ).expect("parsing item issue").clone();
                     let pval : f64 = m.get_one::<f64>("pval" ).expect("parsing pval issue").clone();
-                    let offset  = m.get_one::<i64>("offset");
-                    let limit  = m.get_one::<usize>( "limit"); 
-                    let strides  = m.get_one::<usize>("strides");
-                    intermediate_visualization( data, models, output, item, pval, offset, limit, strides );
-                }
+                    let offset: Option<i64>  = match m.get_one::<i64>("offset") {Some(O) => Some( *O ),None => None};
+                    let limit: Option<usize>  = match m.get_one::<usize>( "limit"){Some(O) => Some( *O ),None => None}; 
+                    let strides  = match m.get_one::<usize>("strides"){Some(O) => Some( *O ),None => None};
+                    let title : Option<String> = match m.get_one::<String>("title"){Some(O) => Some( O.clone() ),None => None};
+                    let xlabel : Option<String> = match m.get_one::<String>("xlabel"){Some(O) => Some( O.clone() ),None => None};
+                    let ylabel : Option<String> = match m.get_one::<String>("ylabel"){Some(O) => Some( O.clone() ),None => None};
+                    intermediate_visualization( models, output, item, pval, offset, limit, strides , title, xlabel, ylabel);
+                },
+                Some(("residual", m )) => {
+                    //let data : String = m.get_one::<String>("DATA").expect( "data file not specified").clone();
+                    let models : String = m.get_one::<String>("MODEL").expect( "MODEL file not specified").clone();
+                    let output : String = m.get_one::<String>("OUTPUT").expect( "OUTPUT file not specified").clone();
+                    let index : usize = m.get_one::<usize>("index" ).expect("parsing model at index").clone();
+                    let offset: Option<i64>  = match m.get_one::<i64>("offset") {Some(O) => Some( *O ),None => None};
+                    let limit: Option<usize>  = match m.get_one::<usize>( "limit"){Some(O) => Some( *O ),None => None}; 
+                    let strides  = match m.get_one::<usize>("strides"){Some(O) => Some( *O ),None => None};
+                    let title : Option<String> = match m.get_one::<String>("title"){Some(O) => Some( O.clone() ),None => None};
+                    let xlabel : Option<String> = match m.get_one::<String>("xlabel"){Some(O) => Some( O.clone() ),None => None};
+                    let ylabel : Option<String> = match m.get_one::<String>("ylabel"){Some(O) => Some( O.clone() ),None => None};
+                    residual_visualization(  models, output, index, offset, limit, strides, partial_model::new(60, 120), title, xlabel, ylabel);
+                },
+                Some(("disp", m )) => {
+                    //let data : String = m.get_one::<String>("DATA").expect( "data file not specified").clone();
+                    let models : String = m.get_one::<String>("MODEL").expect( "MODEL file not specified").clone();
+                    let output : String = m.get_one::<String>("OUTPUT").expect( "OUTPUT file not specified").clone();
+                    let index : usize = m.get_one::<usize>("index" ).expect("parsing model at index").clone();
+                    let offset: Option<i64>  = match m.get_one::<i64>("offset") {Some(O) => Some( *O ),None => None};
+                    let limit: Option<usize>  = match m.get_one::<usize>( "limit"){Some(O) => Some( *O ),None => None}; 
+                    let strides  = match m.get_one::<usize>("strides"){Some(O) => Some( *O ),None => None};
+                    let title : Option<String> = match m.get_one::<String>("title"){Some(O) => Some( O.clone() ),None => None};
+                    let xlabel : Option<String> = match m.get_one::<String>("xlabel"){Some(O) => Some( O.clone() ),None => None};
+                    let ylabel : Option<String> = match m.get_one::<String>("ylabel"){Some(O) => Some( O.clone() ),None => None};
+                    disp_visualization(  models, output, index, offset, limit, strides, partial_model::new(60, 120), title, xlabel, ylabel);
+                },
+                Some(("skew", m )) => {
+                    //let data : String = m.get_one::<String>("DATA").expect( "data file not specified").clone();
+                    let models : String = m.get_one::<String>("MODEL").expect( "MODEL file not specified").clone();
+                    let output : String = m.get_one::<String>("OUTPUT").expect( "OUTPUT file not specified").clone();
+                    let index : usize = m.get_one::<usize>("index" ).expect("parsing model at index").clone();
+                    let offset: Option<i64>  = match m.get_one::<i64>("offset") {Some(O) => Some( *O ),None => None};
+                    let limit: Option<usize>  = match m.get_one::<usize>( "limit"){Some(O) => Some( *O ),None => None}; 
+                    let strides  = match m.get_one::<usize>("strides"){Some(O) => Some( *O ),None => None};
+                    let title : Option<String> = match m.get_one::<String>("title"){Some(O) => Some( O.clone() ),None => None};
+                    let xlabel : Option<String> = match m.get_one::<String>("xlabel"){Some(O) => Some( O.clone() ),None => None};
+                    let ylabel : Option<String> = match m.get_one::<String>("ylabel"){Some(O) => Some( O.clone() ),None => None};
+                    skew_visualization(  models, output, index, offset, limit, strides, partial_model::new(60, 120), title, xlabel, ylabel);
+                },
                 _ => {}
             }
         }, 
+        Some( ("csv", m )) => {
+            match m.subcommand(){
+                Some(("fore", m )) => {
+                    //let data : String = m.get_one::<String>("DATA").expect( "data file not specified").clone();
+                    let models : String = m.get_one::<String>("MODEL").expect( "MODEL file not specified").clone();
+                    let output : String = m.get_one::<String>("OUTPUT").expect( "OUTPUT file not specified").clone();
+                    let index : usize = match m.get_one::<usize>("index" ){Some(O) => *O , None => 0};
+                    let offset: Option<i64>  = match m.get_one::<i64>("offset") {Some(O) => Some( *O ),None => None};
+                    let limit: Option<usize>  = match m.get_one::<usize>( "limit"){Some(O) => Some( *O ),None => None}; 
+                    let strides  = match m.get_one::<usize>("strides"){Some(O) => Some( *O ),None => None};
+                    drop_csv_data(  models, output, index, offset, limit, strides, partial_model::new(0, 0));
+                },
+                Some(("residual", m )) => {
+                    //let data : String = m.get_one::<String>("DATA").expect( "data file not specified").clone();
+                    let models : String = m.get_one::<String>("MODEL").expect( "MODEL file not specified").clone();
+                    let output : String = m.get_one::<String>("OUTPUT").expect( "OUTPUT file not specified").clone();
+                    let index : usize = m.get_one::<usize>("index" ).expect("parsing model at index").clone();
+                    let offset: Option<i64>  = match m.get_one::<i64>("offset") {Some(O) => Some( *O ),None => None};
+                    let limit: Option<usize>  = match m.get_one::<usize>( "limit"){Some(O) => Some( *O ),None => None}; 
+                    let strides  = match m.get_one::<usize>("strides"){Some(O) => Some( *O ),None => None};
+                    residual_disp_skew_csv(  models, output, index, offset, limit, strides, partial_model::new(0, 0));
+                },
+                Some(("disp", m )) => {
+                    //let data : String = m.get_one::<String>("DATA").expect( "data file not specified").clone();
+                    let models : String = m.get_one::<String>("MODEL").expect( "MODEL file not specified").clone();
+                    let output : String = m.get_one::<String>("OUTPUT").expect( "OUTPUT file not specified").clone();
+                    let index : usize = m.get_one::<usize>("index" ).expect("parsing model at index").clone();
+                    let offset: Option<i64>  = match m.get_one::<i64>("offset") {Some(O) => Some( *O ),None => None};
+                    let limit: Option<usize>  = match m.get_one::<usize>( "limit"){Some(O) => Some( *O ),None => None}; 
+                    let strides  = match m.get_one::<usize>("strides"){Some(O) => Some( *O ),None => None};
+                    residual_disp_skew_csv(  models, output, index, offset, limit, strides, partial_model::new(0, 0));
+                },
+                Some(("skew", m )) => {
+                    //let data : String = m.get_one::<String>("DATA").expect( "data file not specified").clone();
+                    let models : String = m.get_one::<String>("MODEL").expect( "MODEL file not specified").clone();
+                    let output : String = m.get_one::<String>("OUTPUT").expect( "OUTPUT file not specified").clone();
+                    let index : usize = m.get_one::<usize>("index" ).expect("parsing model at index").clone();
+                    let offset: Option<i64>  = match m.get_one::<i64>("offset") {Some(O) => Some( *O ),None => None};
+                    let limit: Option<usize>  = match m.get_one::<usize>( "limit"){Some(O) => Some( *O ),None => None}; 
+                    let strides  = match m.get_one::<usize>("strides"){Some(O) => Some( *O ),None => None};
+                    residual_disp_skew_csv(  models, output, index, offset, limit, strides, partial_model::new(0, 0));
+                },
+                _ => {}
+            }
+        },
         Some( ("exp", m )) => {
             match m.subcommand(){
                 Some(("basic", m )) => 
@@ -146,6 +247,13 @@ fn cli_model_fit( ) -> Command {
         .default_value("1000")
         .value_parser(value_parser!(usize))                
     )
+    .arg( 
+        Arg::new( "col" )
+        .short('d')
+        .long("datacolumn")
+        .default_value( "count")
+        .value_parser( value_parser!( String ))
+    )
     .arg(
         Arg::new( "offset" )
         .short( 'o' )
@@ -193,7 +301,7 @@ fn cli_model_viz( ) -> Command {
             Arg::new( "top" )
             .short( 't')
             .long_help("select this many models from the input model file" )
-            .long("top")
+            .long("top")    
             .default_value("1" )
             .value_parser(value_parser!(usize))
         ) 
@@ -214,13 +322,34 @@ fn cli_model_viz( ) -> Command {
         .arg( 
             Arg::new( "strides" )
             .short('x')
-            .long("stides")
+            .long("strides")
             .default_value( "1")
             .value_parser( value_parser!( usize ))
         )
+        .arg( 
+            Arg::new( "title" )
+            .short('T')
+            .long("title")
+            .default_value( None )
+            .value_parser( value_parser!( String ))
+        )
+        .arg( 
+            Arg::new( "xlabel" )
+            .short('X')
+            .long("xlabel")
+            .default_value( None )
+            .value_parser( value_parser!( String ))
+        )
+        .arg( 
+            Arg::new( "ylabel" )
+            .short('Y')
+            .long("ylabel")
+            .default_value( None )
+            .value_parser( value_parser!( String ))
+        )
         .arg(arg!(<OUTPUT> "A png file"))
-        .arg(arg!(<DATA> "data to consider, .. should be a list of csv files with headers" ))
-        .arg(arg!(<MODEL> "model file, .. such as that generated in the fit proceedure "))
+        //.arg(arg!(<DATA> "data to consider, .. should be a list of csv files with headers" ))
+        .arg(arg!(<MODEL> "model file, .. such as that generated in the fit procedure "))
         .arg_required_else_help(true)
     )
     .subcommand(
@@ -259,13 +388,366 @@ fn cli_model_viz( ) -> Command {
         .arg( 
             Arg::new( "strides" )
             .short('x')
-            .long("stides")
+            .long("strides")
+            .default_value( "1")
+            .value_parser( value_parser!( usize ))
+        )
+        .arg( 
+            Arg::new( "title" )
+            .short('T')
+            .long("title")
+            .default_value( None )
+            .value_parser( value_parser!( String ))
+        )
+        .arg( 
+            Arg::new( "xlabel" )
+            .short('X')
+            .long("xlabel")
+            .default_value( None )
+            .value_parser( value_parser!( String ))
+        )
+        .arg( 
+            Arg::new( "ylabel" )
+            .short('Y')
+            .long("ylabel")
+            .default_value( None )
+            .value_parser( value_parser!( String ))
+        )
+        .arg(arg!(<OUTPUT> "A png file"))
+        //.arg(arg!(<DATA> "data to consider, .. should be a list of csv files with headers" ))
+        .arg(arg!(<MODEL> "model file, .. such as that generated in the fit procedure "))
+        .arg_required_else_help(true)
+    )
+    .subcommand(
+        Command::new("residual")
+        .about( "construct basic plots with rolling quantile for residual.")
+        .arg(                     
+            Arg::new( "index" )
+            .short( 'i')
+            .long_help("select this model from the input model file" )
+            .long("index")
+            .default_value("0" )
+            .value_parser(value_parser!(usize))
+        ) 
+        .arg(
+            Arg::new( "offset" )
+            .short( 'o' )
+            .long( "offset" )
+            .default_value( "0")
+            .value_parser( value_parser!( i64 ))
+        )
+        .arg( 
+            Arg::new( "limit" )
+            .short('l') 
+            .long("limit")
+            .default_value( "18446744073709551615")
+            .value_parser( value_parser!( usize ))
+        )
+        .arg( 
+            Arg::new( "strides" )
+            .short('x')
+            .long("strides")
+            .default_value( "1")
+            .value_parser( value_parser!( usize ))
+        )
+        .arg( 
+            Arg::new( "title" )
+            .short('T')
+            .long("title")
+            .default_value( None )
+            .value_parser( value_parser!( String ))
+        )
+        .arg( 
+            Arg::new( "xlabel" )
+            .short('X')
+            .long("xlabel")
+            .default_value( None )
+            .value_parser( value_parser!( String ))
+        )
+        .arg( 
+            Arg::new( "ylabel" )
+            .short('Y')
+            .long("ylabel")
+            .default_value( None )
+            .value_parser( value_parser!( String ))
+        )
+        .arg(arg!(<OUTPUT> "A png file"))
+        //.arg(arg!(<DATA> "data to consider, .. should be a list of csv files with headers" ))
+        .arg(arg!(<MODEL> "model file, .. such as that generated in the fit procedure "))
+        .arg_required_else_help(true)
+    )
+    .subcommand(
+        Command::new("disp")
+        .about( "construct basic plots with rolling quantile for displacements.")
+        .arg(                     
+            Arg::new( "index" )
+            .short( 'i')
+            .long_help("select this model from the input model file" )
+            .long("index")
+            .default_value("0" )
+            .value_parser(value_parser!(usize))
+        ) 
+        .arg(
+            Arg::new( "offset" )
+            .short( 'o' )
+            .long( "offset" )
+            .default_value( "0")
+            .value_parser( value_parser!( i64 ))
+        )
+        .arg( 
+            Arg::new( "limit" )
+            .short('l') 
+            .long("limit")
+            .default_value( "18446744073709551615")
+            .value_parser( value_parser!( usize ))
+        )
+        .arg( 
+            Arg::new( "strides" )
+            .short('x')
+            .long("strides")
+            .default_value( "1")
+            .value_parser( value_parser!( usize ))
+        )
+        .arg( 
+            Arg::new( "title" )
+            .short('T')
+            .long("title")
+            .default_value( None )
+            .value_parser( value_parser!( String ))
+        )
+        .arg( 
+            Arg::new( "xlabel" )
+            .short('X')
+            .long("xlabel")
+            .default_value( None )
+            .value_parser( value_parser!( String ))
+        )
+        .arg( 
+            Arg::new( "ylabel" )
+            .short('Y')
+            .long("ylabel")
+            .default_value( None )
+            .value_parser( value_parser!( String ))
+        )
+        .arg(arg!(<OUTPUT> "A png file"))
+        //.arg(arg!(<DATA> "data to consider, .. should be a list of csv files with headers" ))
+        .arg(arg!(<MODEL> "model file, .. such as that generated in the fit procedure "))
+        .arg_required_else_help(true)
+    )
+    .subcommand(
+        Command::new("skew")
+        .about( "construct basic plots with rolling quantile for skewness.")
+        .arg(                     
+            Arg::new( "index" )
+            .short( 'i')
+            .long_help("select this model from the input model file" )
+            .long("index")
+            .default_value("0" )
+            .value_parser(value_parser!(usize))
+        ) 
+        .arg(
+            Arg::new( "offset" )
+            .short( 'o' )
+            .long( "offset" )
+            .default_value( "0")
+            .value_parser( value_parser!( i64 ))
+        )
+        .arg( 
+            Arg::new( "limit" )
+            .short('l') 
+            .long("limit")
+            .default_value( "18446744073709551615")
+            .value_parser( value_parser!( usize ))
+        )
+        .arg( 
+            Arg::new( "strides" )
+            .short('x')
+            .long("strides")
+            .default_value( "1")
+            .value_parser( value_parser!( usize ))
+        )
+        .arg( 
+            Arg::new( "title" )
+            .short('T')
+            .long("title")
+            .default_value( None )
+            .value_parser( value_parser!( String ))
+        )
+        .arg( 
+            Arg::new( "xlabel" )
+            .short('X')
+            .long("xlabel")
+            .default_value( None )
+            .value_parser( value_parser!( String ))
+        )
+        .arg( 
+            Arg::new( "ylabel" )
+            .short('Y')
+            .long("ylabel")
+            .default_value( None )
+            .value_parser( value_parser!( String))
+        )
+
+        .arg(arg!(<OUTPUT> "A png file"))
+        //.arg(arg!(<DATA> "data to consider, .. should be a list of csv files with headers" ))
+        .arg(arg!(<MODEL> "model file, .. such as that generated in the fit procedure "))
+        .arg_required_else_help(true)
+    )
+}
+
+fn cli_model_csv( ) -> Command {
+    Command::new("csv")
+    .about( "render forecast data and measurements for model")
+    //.arg_required_else_help(true)
+    .subcommand_required(true)
+    .arg_required_else_help(true)
+    .allow_external_subcommands(true)
+    .subcommand(
+        Command::new("fore")
+        .about( "drop a csv file for forecast and optionally data (when data exists) in retro-diction mode.")
+        .arg(                     
+            Arg::new( "index" )
+            .short( 'i')
+            .long_help("select this model from the input model file" )
+            .long("index")
+            .default_value("0" )
+            .value_parser(value_parser!(usize))
+        )
+        .arg(
+            Arg::new( "offset" )
+            .short( 'o' )
+            .long( "offset" )
+            .default_value( "0")
+            .value_parser( value_parser!( i64 ))
+        )
+        .arg( 
+            Arg::new( "limit" )
+            .short('l') 
+            .long("limit")
+            .default_value( "18446744073709551615")
+            .value_parser( value_parser!( usize ))
+        )
+        .arg( 
+            Arg::new( "strides" )
+            .short('x')
+            .long("strides")
+            .default_value( "1")
+            .value_parser( value_parser!( usize ))
+        )
+        .arg(arg!(<OUTPUT> "A csv file"))
+        //.arg(arg!(<DATA> "data to consider, .. should be a list of csv files with headers" ))
+        .arg(arg!(<MODEL> "model file, .. such as that generated in the fit procedure "))
+        .arg_required_else_help(true)
+    )
+    .subcommand(
+        Command::new("residual")
+        .about( "construct csv file with rolling quantile for residual.")
+        .arg(                     
+            Arg::new( "index" )
+            .short( 'i')
+            .long_help("select this model from the input model file" )
+            .long("index")
+            .default_value("0" )
+            .value_parser(value_parser!(usize))
+        ) 
+        .arg(
+            Arg::new( "offset" )
+            .short( 'o' )
+            .long( "offset" )
+            .default_value( "0")
+            .value_parser( value_parser!( i64 ))
+        )
+        .arg( 
+            Arg::new( "limit" )
+            .short('l') 
+            .long("limit")
+            .default_value( "18446744073709551615")
+            .value_parser( value_parser!( usize ))
+        )
+        .arg( 
+            Arg::new( "strides" )
+            .short('x')
+            .long("strides")
+            .default_value( "1")
+            .value_parser( value_parser!( usize ))
+        )
+        .arg(arg!(<OUTPUT> "A csv file"))
+        //.arg(arg!(<DATA> "data to consider, .. should be a list of csv files with headers" ))
+        .arg(arg!(<MODEL> "model file, .. such as that generated in the fit procedure "))
+        .arg_required_else_help(true)
+    )
+    .subcommand(
+        Command::new("disp")
+        .about( "construct csv file with rolling quantile for displacements.")
+        .arg(                     
+            Arg::new( "index" )
+            .short( 'i')
+            .long_help("select this model from the input model file" )
+            .long("index")
+            .default_value("0" )
+            .value_parser(value_parser!(usize))
+        ) 
+        .arg(
+            Arg::new( "offset" )
+            .short( 'o' )
+            .long( "offset" )
+            .default_value( "0")
+            .value_parser( value_parser!( i64 ))
+        )
+        .arg( 
+            Arg::new( "limit" )
+            .short('l') 
+            .long("limit")
+            .default_value( "18446744073709551615")
+            .value_parser( value_parser!( usize ))
+        )
+        .arg( 
+            Arg::new( "strides" )
+            .short('x')
+            .long("strides")
+            .default_value( "1")
+            .value_parser( value_parser!( usize ))
+        )
+        .arg(arg!(<OUTPUT> "A csv file"))
+        //.arg(arg!(<DATA> "data to consider, .. should be a list of csv files with headers" ))
+        .arg(arg!(<MODEL> "model file, .. such as that generated in the fit procedure "))
+        .arg_required_else_help(true)
+    )
+    .subcommand(
+        Command::new("skew")
+        .about( "construct csv file with rolling quantile for skewness.")
+        .arg(                     
+            Arg::new( "index" )
+            .short( 'i')
+            .long_help("select this model from the input model file" )
+            .long("index")
+            .default_value("0" )
+            .value_parser(value_parser!(usize))
+        ) 
+        .arg(
+            Arg::new( "offset" )
+            .short( 'o' )
+            .long( "offset" )
+            .default_value( "0")
+            .value_parser( value_parser!( i64 ))
+        )
+        .arg( 
+            Arg::new( "limit" )
+            .short('l') 
+            .long("limit")
+            .default_value( "18446744073709551615")
+            .value_parser( value_parser!( usize ))
+        )
+        .arg( 
+            Arg::new( "strides" )
+            .short('x')
+            .long("strides")
             .default_value( "1")
             .value_parser( value_parser!( usize ))
         )
         .arg(arg!(<OUTPUT> "A png file"))
-        .arg(arg!(<DATA> "data to consider, .. should be a list of csv files with headers" ))
-        .arg(arg!(<MODEL> "model file, .. such as that generated in the fit proceedure "))
+        //.arg(arg!(<DATA> "data to consider, .. should be a list of csv files with headers" ))
+        .arg(arg!(<MODEL> "model file, .. such as that generated in the fit procedure "))
         .arg_required_else_help(true)
     )
 }
@@ -288,7 +770,7 @@ fn cli_model_exp( ) -> Command {
             .default_value("1" )
             .value_parser(value_parser!(usize))
         ) 
-        .arg(arg!(<MODEL> "model file, .. such as that generated in the fit proceedure "))
+        .arg(arg!(<MODEL> "model file, .. such as that generated in the fit procedure "))
         .arg_required_else_help(true)
     )
     .subcommand(
@@ -310,7 +792,7 @@ fn cli_model_exp( ) -> Command {
             .default_value("0.02" )
             .value_parser(value_parser!(f64))
         ) 
-        .arg(arg!(<MODEL> "model file, .. such as that generated in the fit proceedure "))
+        .arg(arg!(<MODEL> "model file, .. such as that generated in the fit procedure "))
         .arg_required_else_help(true)
     )
 }
@@ -329,6 +811,9 @@ fn cli() -> Command {
         )
         .subcommand( 
             cli_model_viz()
+        )
+        .subcommand(
+            cli_model_csv()
         )
         .subcommand(
             cli_model_exp()

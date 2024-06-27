@@ -1,9 +1,9 @@
+use ndarray::Array;
 use plotly::layout::{Axis, GridPattern, Layout, LayoutGrid,  TicksDirection, BarMode, Legend, RowOrder, Shape, ShapeType, ShapeLine, ShapeLayer, Annotation};
 use plotly::{ImageFormat, Scatter, Plot, Bar, color::{Rgb,  NamedColor, Rgba}};
 use plotly::common::{
     ColorScale, ColorScalePalette, DashType, Fill, Font, Side, Line, LineShape, Marker, Mode, Title,
 };
-
 use plotly::box_plot::{BoxMean, BoxPoints};
 use plotly::common::{ErrorData, ErrorType, Orientation};
 use plotly::histogram::{Bins, Cumulative, HistFunc, HistNorm};
@@ -93,8 +93,6 @@ fn check_residual( D : &Vec<f64> , M : &Vec<f64> ) -> ( f64, f64, Vec<f64>){
     let rsumsq = libm::sqrt( rsum ); 
     ( rsumsq, rsum/Z,  resid )
 }
-
-
 
 
 /// given val in [0,1] representing the fraction of motion, we wish to find the crossing for 1+tanh(alpha*t+beta). 
@@ -196,7 +194,7 @@ pub fn plot_a( t : &Vec<f64>, d: &Vec<f64>, m : &Vec<(f64, Vec<f64>)>, act : Plo
 
 }
 
-pub fn plot_c( t : &Vec<f64>, d: &Vec<f64>, m : &Vec<f64>, act : PlotAction, title : String, x_label : String, y_label : String   ) {
+pub fn plot_c( t : &Vec<f64>, d: &Vec<f64>, tm: &Vec<f64>, m : &Vec<f64>, act : PlotAction, title : String, x_label : String, y_label : String   ) {
  
     let mut plot = Plot::new();
     let trace1 = Scatter::new(t.clone(), d.clone())
@@ -207,7 +205,7 @@ pub fn plot_c( t : &Vec<f64>, d: &Vec<f64>, m : &Vec<f64>, act : PlotAction, tit
                             .y_axis( "counts" )
                             .opacity(0.75);
 
-    let trace2 = Scatter::new(t.clone(), m.clone())
+    let trace2 = Scatter::new(tm.clone(), m.clone())
                         .mode(Mode::Lines)
                         .name("model") 
                         .opacity(0.89 );
@@ -268,6 +266,109 @@ pub fn plot_c( t : &Vec<f64>, d: &Vec<f64>, m : &Vec<f64>, act : PlotAction, tit
     }
 
 }
+
+// This plot is designed to show bands around the model.
+pub fn plot_d(  t : &Vec<f64>, 
+                d : &Vec<f64>, 
+                tm: &Vec<f64>,  // local graph 
+                m : &Vec<f64>,  // local model 
+                ttb : &Vec<f64>, 
+                dtb : &Vec<Vec<f64>>,
+                act : PlotAction, 
+                title : String, 
+                x_label : String, 
+                y_label : String   ) {
+ 
+    let mut plot = Plot::new();
+
+    let regions = dtb.iter()
+                                                .map(|d| 
+                                                    { 
+                                                        Scatter::new( ttb.clone(), d.clone() )
+                                                            .fill( Fill::ToZeroX  )
+                                                            .fill_color(Rgba::new(255, 192, 203,0.5))
+                                                            .line(Line::new().color(Rgba::new(255, 192, 203,0.7)))
+                                                            .name("band")
+                                                            .show_legend(false)
+                                                    } );
+
+    let trace1 = Scatter::new(t.clone(), d.clone())
+                            .name("data")
+                            .mode(Mode::Markers)
+                            .marker(Marker::new().size(3) )
+                            .x_axis( "time" )
+                            .y_axis( "counts" )
+                            .opacity(0.75);
+
+    let trace2 = Scatter::new(tm.clone(), m.clone())
+                        .mode(Mode::Lines)
+                        .name("model") 
+                        .opacity(0.89 );
+
+
+    let layout = Layout::new()/* .grid(
+        LayoutGrid::new()
+            .rows(2)
+            .columns(1)
+            .pattern(GridPattern::Independent),
+        )*/
+        .title(Title::new( title.as_str() ))
+        .x_axis(Axis::new().title(Title::new( x_label.as_str())))
+        .y_axis(Axis::new().title(Title::new( y_label.as_str())));
+
+    plot.set_layout(layout);
+
+    regions.for_each(|r|
+        plot.add_trace(r)
+    );
+    plot.add_trace(trace1);
+    plot.add_trace(trace2);
+    let mut plot2 = Plot::new();
+    //plot.add_traces(vec![trace1, trace2]);
+
+    ////////////////////////////////////////////////////////////////////////
+    ///
+    ///  Part 2.  plot the residual
+    /// 
+    let disp: Vec<f64> = d.iter().zip( m ).map( |(a,b)| a - b ).collect();
+
+    let trace3 = Histogram::new(disp).name("displacments histo");
+
+    let mut new_title = title.clone();
+    new_title.push_str(" histo" );
+    let layout = Layout::new()/* .grid(
+        LayoutGrid::new()
+            .rows(2)
+            .columns(1)
+            .pattern(GridPattern::Independent),
+        )*/
+        .title(Title::new( new_title.as_str() ))
+        .x_axis(Axis::new().title(Title::new( "displacments" )))
+        .y_axis(Axis::new().title(Title::new( "frequnecy")));
+
+    plot2.set_layout(layout);
+    plot2.add_trace(trace3);
+    match act {
+        PlotAction::PNG(filename, width, height, scale ) => {
+            let mut new_filename = filename.clone();
+            new_filename.push_str( "hist");
+            write_png(filename, plot, width, height, scale );
+            write_png(new_filename, plot2, width, height, scale );
+        },
+        PlotAction::SHOW => {
+            plot.show();
+            println!("{}",plot.to_inline_html(Some("simple_subplot")));
+        },
+        PlotAction::HTML(filename) => {
+            let mut new_filename = filename.clone();
+            new_filename.push_str( "hist");
+            write_html(filename, plot);
+            write_html(new_filename, plot2);
+        },
+    }
+
+}
+
 
 
 pub fn plot_model_with_dates( 
@@ -451,24 +552,66 @@ pub fn add_model_hump_annotate(t0 : f64, b: f64, p: f64, tt1: f64, tt2: f64, mt0
             ann_anchor
         }
 
-pub fn plot_model_with_markers( t : &Vec<f64>, d: &Vec<f64>, AAM: AffineAdditive<ModelTanh>, p: f64, act : PlotAction, title : String, x_label : String, y_label : String   ) {
+pub fn plot_model_with_markers( 
+    t : &Vec<f64>,  // time series entire time domain
+    d: &Vec<f64>,   // data series entire
+    tm: &Vec<f64>,  // model time domain  
+    mv: &Vec<f64>,  // mode value sequence
+    AAM: AffineAdditive<ModelTanh>, 
+    p: f64, 
+    act : PlotAction, 
+    title : String, 
+    x_label : String, 
+    y_label : String   ) 
+    {
         // Here we plot the model but also the midpoints as well as time crossing for p fraction of motion.
         let mut plot = Plot::new();
     
         let MA: ModelAdditive<ModelTanh> = AAM.tm.clone() ; 
         let YC: ModelConstant = AAM.km.clone();
-        let mx = eval_M(&AAM, &t.to_vec()); 
-        let LSM = check_residual(&d, &mx.clone()).0;
+        
+        let tm_nom = (tm.len()-1) as f64; 
+        let tm_first = * tm.first().expect( "tm sequence should be non empty");
+        let tm_last = * tm.last().expect("tm sequence should be non empty");
+        //ERROR BELOW should be 0..len(tm) instead of tm
+
+        let tpredict : Vec<f64> = (0..).take( * t.last().expect("") as usize ).filter(|x| { ( *x > (* tm.last().expect("") as i32) )  }).map(|x|{x as f64}).collect();
+        //((* tm.last().expect("") as usize )..((* t.last().expect("") - * tm.last().expect("")) as usize )).map( |x| x as f64 ).collect();
+        println!( " TPREDICT\n: {:?}", tpredict.clone());
+        let mpredict = eval_M(&AAM, &tpredict.to_vec()); 
+        let LSM = check_residual(&d, &mv.clone()).0;
      
         let (dmin, dmax ) = data_bound_box(d);
         let (tmin, tmax ) = data_bound_box(t);
         let DT : f64 = tmax - tmin ; 
         let DD : f64 = dmax - dmin ;
     
-        plot = plot_data(plot, t, d );
-    
-        plot = plot_model(plot, t, &mx, 0.98 , "model");
-    
+        //plot = plot_data(plot, t, d );
+        //plot = plot_model(plot, tm, &mx, 0.98 , "model");
+
+        let trace1 = Scatter::new(t.clone(), d.clone())
+                                .name("data")
+                                .mode(Mode::Markers)
+                                .marker(Marker::new().size(3) )
+                                .x_axis( "time" )
+                                .y_axis( "counts" )
+                                .opacity(0.75);
+        plot.add_trace(trace1);
+
+        let trace2 = Scatter::new(tm.clone(), mv.clone())
+                            .mode(Mode::Lines)
+                            .name("model") 
+                            .opacity(0.89 );
+
+        plot.add_trace(trace2);
+
+        let trace3 = Scatter::new( tpredict.clone(), mpredict.clone()  )
+            .name("prediction")
+            .mode(Mode::LinesMarkers)
+            .line(Line::new().dash(DashType::DashDot))
+            .opacity( 0.8); 
+
+        plot.add_trace(trace3);
         let mut layout = Layout::new()
                                 .title(Title::new( title.as_str() ))
                                 .x_axis(Axis::new().title(Title::new( x_label.as_str())).range(vec![t[0], t[t.len()-1]]))
@@ -478,19 +621,25 @@ pub fn plot_model_with_markers( t : &Vec<f64>, d: &Vec<f64>, AAM: AffineAdditive
         let mut atextx: Vec<String> = Vec::new() ; 
         let mut ann_anchor : Vec<Annotation> = Vec::new(); 
         
+        let translate = |t:f64 | {  tm_first + t * ( tm_last - tm_first )/tm_nom };
+
+
+
         for tm in MA.components {
             let a = tm.alpha; 
             let b  = tm.beta; 
             let t0 = -b/a; 
-            layout = add_vert_line( layout, t0 ); 
+            layout = add_vert_line( layout, translate( t0 ) ); 
+            let shaded_region = false; 
+            if shaded_region { 
             // anchor.push( t0 ); 
             // atextx.push( String::from(format!("Ø {:.2} γ {:.4}", t0, b).to_string()));
             let tt1 = invert_tanh(p, a, b ); 
             let tt2 = invert_tanh(1.0 - p , a, b);
             let ttt1 = if ( tt1 > tt2 ) { tt2 } else {tt1 };
             let ttt2 = if (tt1 > tt2 ) {tt1 } else {tt2}; 
-            println!( " shading regio {} {}", ttt1, ttt2);
-            layout = add_shaded_region(layout, ttt1, ttt2);
+            println!( " shading regio {} {}", translate( ttt1 ), translate( ttt2 ));
+            layout = add_shaded_region(layout, translate( ttt1 ), translate( ttt2 ));
     
             let mx2 = eval_M(&AAM, &vec![ ttt1, ttt2, t0] );
             let mtt1 : f64 = mx2[0];
@@ -498,9 +647,10 @@ pub fn plot_model_with_markers( t : &Vec<f64>, d: &Vec<f64>, AAM: AffineAdditive
             let mt0 = mx2[2];
             let wdith = 800; 
     
-            let mut hump_anchors = add_model_hump_annotate(t0 , b, p, ttt1, ttt2, mt0, mtt1, mtt2, (tmin, tmax), (dmin, dmax)  );
+            let mut hump_anchors = add_model_hump_annotate(t0 , b, p, translate( ttt1 ), translate( ttt2 ), mt0, mtt1, mtt2, (translate( tmin ), translate( tmax)), (dmin, dmax)  );
             ann_anchor.append(&mut hump_anchors )
-        } 
+            }
+        } ;
         layout = layout.annotations(ann_anchor);
         // let trace = Scatter::new( anchor.clone(), anchor.iter().map( |x| 0.0 ).collect() )
         //         .text_array( atextx.iter().map(|x| x.as_str() ).collect() )

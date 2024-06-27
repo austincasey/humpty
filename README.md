@@ -3,10 +3,10 @@
 W. Casey, L. Metcalf, H. Janwa, E. Battifarano, S. Chatterjee, A. Edwards
 
 Numerical Method to comprehend/approximate Chang-points caused by spontaneous changes to capacity and rates
-(c) 2023 W. Casey
+(c) 2023-2024 W. Casey
 
 <div style="text-align: center;">
-<img src="doc/climate.png" alt="Climate data" width="400" height="200"/>
+<img src="./doc/climate.png" alt="Climate data" width="400" height="200"/>
 <p>
 Climate change data and adaptive model.
 </div>

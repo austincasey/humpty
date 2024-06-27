@@ -63,17 +63,41 @@ impl<M> AffineAdditive<M> where M : ParameterizedModel + Clone + VarProAdapter {
     }   
 
 
-    pub fn residual( & self , 
+    pub fn residual_mat( & self , 
         tspan : &Matrix<f64, Dyn, Const<1>, nalgebra::VecStorage<f64, Dyn, Const<1>>>, 
         data : &Matrix<f64, Dyn, Const<1>, nalgebra::VecStorage<f64, Dyn, Const<1>>>, 
-    ) -> (f64, f64, Vec<f64>)     {
+    ) -> (f64, f64, Vec<f64>, Vec<f64>)     {
         let M :Vec<f64> = tspan.iter().map( |t| self.eval(*t) ).collect();
         let ML = M.len();
+        let resid1 : Vec<f64> = data.iter().zip( M.iter() ).map( |(a,b)| { (a -b) }).collect();
         let resid : Vec<f64> = data.iter().zip( M.iter() ).map( |(a,b)| { (a -b)*(a-b ) }).collect();
         let rsum = resid.iter().fold(0., |acc,x | acc + x );
         let rsumsq = libm::sqrt( rsum ); 
         let rsumsq_pp = rsumsq / (ML as f64 );
-        ( rsumsq,rsumsq_pp,resid )
+        ( rsumsq,rsumsq_pp,resid, resid1 )
+    }
+    ////////////////////////////
+    /// residual calle on the model will evaluate values into M
+    ///     M the model eval on given timespan
+    ///     resid1:  then calcualte the disp vector as data_i - Model_i
+    ///     resid :  squared disp vector (resid1_i^2)
+    ///     rsum :   summed squared disp
+    ///     rsumsq :  sqrt( rsum )
+    ///     rsumsq_pp : rsumsq / len(M)
+    /// returns rsumsq, rsumsq_pp, resid, resid1 in that order.
+    
+    pub fn residual( & self , 
+        tspan : &Vec<f64>, 
+        data : &Vec<f64>, 
+    ) -> (f64, f64, Vec<f64>, Vec<f64>)     {
+        let M :Vec<f64> = tspan.iter().map( |t| self.eval(*t) ).collect();
+        let ML = M.len();
+        let resid1 : Vec<f64> = data.iter().zip( M.iter() ).map( |(a,b)| { (a -b) }).collect();
+        let resid : Vec<f64> = data.iter().zip( M.iter() ).map( |(a,b)| { (a -b)*(a-b ) }).collect();
+        let rsum = resid.iter().fold(0., |acc,x | acc + x );
+        let rsumsq = libm::sqrt( rsum ); 
+        let rsumsq_pp = rsumsq / (ML as f64 );
+        ( rsumsq,rsumsq_pp,resid, resid1 )
     }
     /// 
     /// This function will generate a random set of models of type M.  
