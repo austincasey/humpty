@@ -3,10 +3,13 @@
 .errorviz-version
 /data_test
 /old
+<<<<<<< HEAD
 /model
 /tmp
 /tmp2
 /tmp3
+=======
+>>>>>>> refs/remotes/origin/main
 /src/main_mod_dm_fit_experimental.rs
 /published_results/old
 /published_results/incldue

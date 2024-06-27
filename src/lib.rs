@@ -6,5 +6,8 @@ pub mod main_mod_dm_exp;
 pub mod models;
 pub mod viz_lib;
 pub mod viz_lib2; 
+<<<<<<< HEAD
 pub mod tests;
 
+=======
+>>>>>>> refs/remotes/origin/main

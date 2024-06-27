@@ -76,6 +76,7 @@ impl<M> AffineAdditive<M> where M : ParameterizedModel + Clone + VarProAdapter {
         let rsumsq_pp = rsumsq / (ML as f64 );
         ( rsumsq,rsumsq_pp,resid, resid1 )
     }
+<<<<<<< HEAD
     ////////////////////////////
     /// residual calle on the model will evaluate values into M
     ///     M the model eval on given timespan
@@ -86,6 +87,9 @@ impl<M> AffineAdditive<M> where M : ParameterizedModel + Clone + VarProAdapter {
     ///     rsumsq_pp : rsumsq / len(M)
     /// returns rsumsq, rsumsq_pp, resid, resid1 in that order.
     
+=======
+
+>>>>>>> refs/remotes/origin/main
     pub fn residual( & self , 
         tspan : &Vec<f64>, 
         data : &Vec<f64>, 

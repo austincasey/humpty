@@ -100,6 +100,7 @@ pub fn load_data( input : &String,
         if verbose { println!(" df {:?}", df ); }
         // POLARS Data frame to NDARRAY
         
+<<<<<<< HEAD
         let DFULL: ndarray::ArrayBase<ndarray::OwnedRepr<f64>, ndarray::Dim<[usize; 1]>> = match df.column( &data_column ) {
             Ok(CD) => CD.f64().unwrap().to_ndarray().unwrap().to_owned(),
             Err(_) => { 
@@ -119,6 +120,13 @@ pub fn load_data( input : &String,
                         }
                     },
                 }
+=======
+        let DFULL: ndarray::ArrayBase<ndarray::ViewRepr<&f64>, ndarray::Dim<[usize; 1]>> = match df.column( &data_column ) {
+            Ok(CD) => CD.f64().unwrap().to_ndarray().unwrap(),
+            Err(_) => { 
+                println!( "ERROR no column by name {data_column}, instead will use the last data column by default.");
+                df.get_columns().last().unwrap().f64().unwrap().to_ndarray().unwrap()
+>>>>>>> refs/remotes/origin/main
             }
         };
         let NFULL = DFULL.shape()[0];

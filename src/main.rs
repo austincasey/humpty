@@ -67,10 +67,14 @@ fn main() {
                     let offset: Option<i64>  = match m.get_one::<i64>("offset") {Some(O) => Some( *O ),None => None};
                     let limit: Option<usize>  = match m.get_one::<usize>( "limit"){Some(O) => Some( *O ),None => None}; 
                     let strides  = match m.get_one::<usize>("strides"){Some(O) => Some( *O ),None => None};
+<<<<<<< HEAD
                     let title : Option<String> = match m.get_one::<String>("title"){Some(O) => Some( O.clone() ),None => None};
                     let xlabel : Option<String> = match m.get_one::<String>("xlabel"){Some(O) => Some( O.clone() ),None => None};
                     let ylabel : Option<String> = match m.get_one::<String>("ylabel"){Some(O) => Some( O.clone() ),None => None};
                     basic_visualization(  models, output, top, offset, limit, strides , partial_model::new(60, 120), title, xlabel, ylabel);
+=======
+                    basic_visualization(  models, output, top, offset, limit, strides , partial_model::new(60, 120));
+>>>>>>> refs/remotes/origin/main
                 },
                 Some(("intermediate", m )) => {
                     //let data : String = m.get_one::<String>("DATA").expect( "data file not specified").clone();
@@ -81,10 +85,14 @@ fn main() {
                     let offset: Option<i64>  = match m.get_one::<i64>("offset") {Some(O) => Some( *O ),None => None};
                     let limit: Option<usize>  = match m.get_one::<usize>( "limit"){Some(O) => Some( *O ),None => None}; 
                     let strides  = match m.get_one::<usize>("strides"){Some(O) => Some( *O ),None => None};
+<<<<<<< HEAD
                     let title : Option<String> = match m.get_one::<String>("title"){Some(O) => Some( O.clone() ),None => None};
                     let xlabel : Option<String> = match m.get_one::<String>("xlabel"){Some(O) => Some( O.clone() ),None => None};
                     let ylabel : Option<String> = match m.get_one::<String>("ylabel"){Some(O) => Some( O.clone() ),None => None};
                     intermediate_visualization( models, output, item, pval, offset, limit, strides , title, xlabel, ylabel);
+=======
+                    intermediate_visualization( models, output, item, pval, offset, limit, strides );
+>>>>>>> refs/remotes/origin/main
                 },
                 Some(("residual", m )) => {
                     //let data : String = m.get_one::<String>("DATA").expect( "data file not specified").clone();
@@ -94,6 +102,7 @@ fn main() {
                     let offset: Option<i64>  = match m.get_one::<i64>("offset") {Some(O) => Some( *O ),None => None};
                     let limit: Option<usize>  = match m.get_one::<usize>( "limit"){Some(O) => Some( *O ),None => None}; 
                     let strides  = match m.get_one::<usize>("strides"){Some(O) => Some( *O ),None => None};
+<<<<<<< HEAD
                     let title : Option<String> = match m.get_one::<String>("title"){Some(O) => Some( O.clone() ),None => None};
                     let xlabel : Option<String> = match m.get_one::<String>("xlabel"){Some(O) => Some( O.clone() ),None => None};
                     let ylabel : Option<String> = match m.get_one::<String>("ylabel"){Some(O) => Some( O.clone() ),None => None};
@@ -124,6 +133,9 @@ fn main() {
                     let xlabel : Option<String> = match m.get_one::<String>("xlabel"){Some(O) => Some( O.clone() ),None => None};
                     let ylabel : Option<String> = match m.get_one::<String>("ylabel"){Some(O) => Some( O.clone() ),None => None};
                     skew_visualization(  models, output, index, offset, limit, strides, partial_model::new(60, 120), title, xlabel, ylabel);
+=======
+                    residual_visualization(  models, output, index, offset, limit, strides, partial_model::new(60, 120));
+>>>>>>> refs/remotes/origin/main
                 },
                 _ => {}
             }
@@ -349,7 +361,11 @@ fn cli_model_viz( ) -> Command {
         )
         .arg(arg!(<OUTPUT> "A png file"))
         //.arg(arg!(<DATA> "data to consider, .. should be a list of csv files with headers" ))
+<<<<<<< HEAD
         .arg(arg!(<MODEL> "model file, .. such as that generated in the fit procedure "))
+=======
+        .arg(arg!(<MODEL> "model file, .. such as that generated in the fit proceedure "))
+>>>>>>> refs/remotes/origin/main
         .arg_required_else_help(true)
     )
     .subcommand(
@@ -747,7 +763,48 @@ fn cli_model_csv( ) -> Command {
         )
         .arg(arg!(<OUTPUT> "A png file"))
         //.arg(arg!(<DATA> "data to consider, .. should be a list of csv files with headers" ))
+<<<<<<< HEAD
         .arg(arg!(<MODEL> "model file, .. such as that generated in the fit procedure "))
+=======
+        .arg(arg!(<MODEL> "model file, .. such as that generated in the fit proceedure "))
+        .arg_required_else_help(true)
+    )
+    .subcommand(
+        Command::new("residual")
+        .about( "construct basic plots with rolling quantile for residual.")
+        .arg(                     
+            Arg::new( "index" )
+            .short( 'i')
+            .long_help("select this many models from the input model file" )
+            .long("index")
+            .default_value("0" )
+            .value_parser(value_parser!(usize))
+        ) 
+        .arg(
+            Arg::new( "offset" )
+            .short( 'o' )
+            .long( "offset" )
+            .default_value( "0")
+            .value_parser( value_parser!( i64 ))
+        )
+        .arg( 
+            Arg::new( "limit" )
+            .short('l') 
+            .long("limit")
+            .default_value( "18446744073709551615")
+            .value_parser( value_parser!( usize ))
+        )
+        .arg( 
+            Arg::new( "strides" )
+            .short('x')
+            .long("stides")
+            .default_value( "1")
+            .value_parser( value_parser!( usize ))
+        )
+        .arg(arg!(<OUTPUT> "A png file"))
+        //.arg(arg!(<DATA> "data to consider, .. should be a list of csv files with headers" ))
+        .arg(arg!(<MODEL> "model file, .. such as that generated in the fit proceedure "))
+>>>>>>> refs/remotes/origin/main
         .arg_required_else_help(true)
     )
 }
