@@ -33,7 +33,7 @@ fi
 BASELINE=$1;
 echo "   using input:$INPUT Building the humpty baseline into:$BASELINE"
 
-BUILD=2;
+BUILD=1;
 # FIRST we create the Humpty baseline model for COVID projections and forecasts here, 
 # Note that we provide time points for the humpty model to make its jumps 
 # from k to k+1 active growth modes.  These jumps were selected in retrospective analysis, 
@@ -95,12 +95,13 @@ fi
 # Second, here we patch the data files (such as forecasts) that humpty generates, so 
 # they can be smoothly compared with the other methods within a sharable python Jupiter 
 # notebooks, so that other scientists can repeat such study as needed.
-
+BUILD=2;
 FIXIT=./fix.sed
 echo "making fixit" 
 if [ $BUILD -eq 2 ] ; then 
-	# First create the mapping between line number and date.
-	cat $INPUT | awk -F"," '(NF>1){print $1}'  | cat -n -  | awk '(NF>1){print int($1-1) " " $2 }' | sed 's/[ \t]*/s\/^/' | sed 's/[ \t]\+/.0,\//' | sed 's/$/,\//' >  $FIXIT
+        # First create the mapping between line number and date.
+        cat $INPUT | awk -F"," '(NF>1){print $1}'  | cat -n -  | awk '(NF>1){print int($1-1) " " $2 }' > time_index.txt
+	cat time_index.txt | sed 's/[ \t]*/s\/^/' | sed 's/[ \t]\+/.0,\//' | sed 's/$/,\//' >  $FIXIT
 	echo "FIXIT is calculated" 
 	for f1 in $(ls ${BASELINE}/comp_fore_at_PRE* | grep -v "delta"); do
 		PREI=$(echo $f1 | sed 's/.*PRE//' | sed 's/_.*//') 
@@ -121,5 +122,7 @@ if [ $BUILD -eq 2 ] ; then
 
 		
 	done
+	rm $FIXIT
+	
 fi
 
