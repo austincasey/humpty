@@ -1,6 +1,6 @@
-# comparing Humpty to other forecasting methods.
+# Comparing Humpty to other forecasting methods.
 
-This readme describes the steps to set up and then compare Humpty to other methods as we demonstrait in our paper.
+This README describes the steps to set up and then compare Humpty to other methods as we demonstrate in our paper.
 
 # step one generate the Humpty COVID-19 baseline model
 
@@ -10,7 +10,7 @@ run:
 
 > ./00_build_humpty_baseline.sh 
 
-This will take about 30 mins or so on a laptop.
+This will take about 90 mins or so to process on a laptop.
 
 
 # Step two you will need to build a python environment enabling the Jupiter notebook script.
@@ -31,5 +31,9 @@ https://medium.com/@kishanck/virtual-environments-for-jupyter-notebooks-847b7a3b
 
 ## Within the browser, an instance of jupyter notebooks should be running,
 Now Open and run the Jupyter notebook 
-compare_humpty_delphi_others.ipynb
+load the following file:
+
+compare_humpty_others.ipynb
+
+Running the cells will generate each method's MSE sequences for each forecast date.  Comparisons are done as humpty vs method-X for each method, the result being pairwise MSE sequences, and total MSE plotted into a point on a log-log graph.
 
