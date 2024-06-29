@@ -21,7 +21,9 @@ Note we provide instructions for python3 (ref: https://docs.python.org/3/library
 If these do not work verify your python distribution.
 
 > python3 -m venv . 
+
 > source ./bin/activate 
+
 > pip3 install -r requirements.txt
 
 ## start the notebook system
