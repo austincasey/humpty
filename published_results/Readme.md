@@ -38,7 +38,9 @@ https://medium.com/@kishanck/virtual-environments-for-jupyter-notebooks-847b7a3b
 
 
 ## Within the browser, an instance of jupyter notebooks should be running,
-Now Open and run the Jupyter notebook 
+If not pay close attention to the text response in the command window where the jupyter-notebook command was issued, you will find instructions on how to connect to the local running server with a URL link.  
+
+Once running in the browser, open and run the Jupyter notebook 
 load the following file:
 
 compare_humpty_others.ipynb
