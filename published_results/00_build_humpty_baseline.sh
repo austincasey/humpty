@@ -23,18 +23,25 @@ if [ $(python3 -c "print(1)") -ne 1 ]; then
        exit 11
 fi        
 # ARGUMENT CHECKING
-if [ $# -ne 1 ] ; then
+if [ $# -ne 0 ] ; then
 	echo "example:"
-	echo ">$0 humpty_baseline"
-	echo " * to bulid the humpty baseline model for covid forecasting"
+	echo ">$0 "
+	echo " * create directory humpty_baseline"
+	echo " * to build the humpty baseline model for COVID forecasting"
 	echo " * will be built in: $(pwd)/humpty_baseline"
 	exit 3
 fi 
-BASELINE=$1;
-echo "   using input:$INPUT Building the humpty baseline into:$BASELINE"
 
-BUILD=2;
-# FIRST we create the Humpty baseline model for Covid projections and forcasts here, 
+BASELINE="humpty_baseline"
+mkdir -p $BASELINE 
+if [ $? -ne 0 ] ; then 
+	echo "cannot overwrite existing object $BASELINE, select another argument" 
+	exit 14
+fi
+
+
+BUILD=1;
+# FIRST we create the Humpty baseline model for COVID projections and forecasts here, 
 # Note that we provide time points for the humpty model to make its jumps 
 # from k to k+1 active growth modes.  These jumps were selected in retrospective analysis, 
 # but are fixed to time points when a human in the loop (at the forecast date) would be 
@@ -92,15 +99,16 @@ if [ $BUILD -eq 1 ] ; then
         done
 fi
 
-# Second, here we patch the data files (such as forecasts) that humpyt generates, so 
-# they can be smoothly compared with the other methods within a sharable python jupyter 
-# notebooks, so that other scientists can repeate such study as needed.
-
+# Second, here we patch the data files (such as forecasts) that humpty generates, so 
+# they can be smoothly compared with the other methods within a sharable python Jupiter 
+# notebooks, so that other scientists can repeat such study as needed.
+BUILD=2;
 FIXIT=./fix.sed
 echo "making fixit" 
 if [ $BUILD -eq 2 ] ; then 
-	# First create the mapping between line number and date.
-	cat $INPUT | awk -F"," '(NF>1){print $1}'  | cat -n -  | awk '(NF>1){print int($1-1) " " $2 }' | sed 's/[ \t]*/s\/^/' | sed 's/[ \t]\+/.0,\//' | sed 's/$/,\//' >  $FIXIT
+        # First create the mapping between line number and date.
+        cat $INPUT | awk -F"," '(NF>1){print $1}'  | cat -n -  | awk '(NF>1){print int($1-1) " " $2 }' > time_index.txt
+	cat time_index.txt | sed 's/[ \t]*/s\/^/' | sed 's/[ \t]\+/.0,\//' | sed 's/$/,\//' >  $FIXIT
 	echo "FIXIT is calculated" 
 	for f1 in $(ls ${BASELINE}/comp_fore_at_PRE* | grep -v "delta"); do
 		PREI=$(echo $f1 | sed 's/.*PRE//' | sed 's/_.*//') 
@@ -121,5 +129,7 @@ if [ $BUILD -eq 2 ] ; then
 
 		
 	done
+	rm $FIXIT
+	
 fi
 
