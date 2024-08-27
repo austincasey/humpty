@@ -347,7 +347,7 @@ pub fn plot_d(  t : &Vec<f64>,
                 .x_axis(Axis::new().title(Title::new( x_label.as_str())))
                 .y_axis(Axis::new().title(Title::new( y_label.as_str())));
     view.plot.set_layout(layout);
-    
+     
     let regions = dtb.iter()
                                                 .map(|d| 
                                                     { 
@@ -369,7 +369,6 @@ pub fn plot_d(  t : &Vec<f64>,
     view.finalize( act );
 }
 
-<<<<<<< HEAD
 /////////////////////
 /// simple plot to plot disp and skew
 /// 
@@ -390,8 +389,6 @@ pub fn plot_e(  t : &Vec<f64>,
     view.finalize( act );
 }
 
-=======
->>>>>>> refs/remotes/origin/main
 // This plot is designed to show bands around the model.
 pub fn plot_d_histo(  t : &Vec<f64>, 
                 d : &Vec<f64>, 
